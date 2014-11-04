@@ -1,0 +1,641 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_amsmath 1
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
+\cite_engine basic
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+TDT4200 - Parallel Computing 
+\end_layout
+
+\begin_layout Title
+Problem Set 4 
+\end_layout
+
+\begin_layout Author
+Jørgen Faret - MTDT
+\end_layout
+
+\begin_layout Part*
+Part 1, Theory
+\end_layout
+
+\begin_layout Section*
+1
+\end_layout
+
+\begin_layout Subsection*
+a)
+\end_layout
+
+\begin_layout Subsubsection*
+Thread
+\end_layout
+
+\begin_layout Standard
+A thread in CUDA is different to a traditional CPU thread in the sense that
+ is a lot more lightweight.
+ A thread in CUDA is an execution of the kernel with a given thread index.
+ For example when accessing elements in an array, each thread uses it’s
+ thread index to determine whch element in the array to access.
+ This means that a thread in CUDA can be looked at as a basic data element
+ to be processed.
+ 
+\end_layout
+
+\begin_layout Subsubsection*
+Warp
+\end_layout
+
+\begin_layout Standard
+The term warp in CUDA means a collection of threads with the collection
+ size corresponding to the minimum amount of data processed in SIMD fashion
+ by a CUDA multiprocessor.
+ In theory, this is system-dependant but in practice currently the warp
+ size is 32 always threads.
+ 
+\end_layout
+
+\begin_layout Subsubsection*
+Block
+\end_layout
+
+\begin_layout Standard
+A block is, like a warp, a collection of threads.
+ The block size is specified by the programmer, and should be a multiple
+ of the warp size.
+ 
+\end_layout
+
+\begin_layout Subsubsection*
+Grid
+\end_layout
+
+\begin_layout Standard
+A grid is a collection of blocks.
+ The size of grids is system-specific.
+ A kernel is executed as a grid of blocks of threads.
+ 
+\end_layout
+
+\begin_layout Subsection*
+b)
+\end_layout
+
+\begin_layout Subsubsection*
+Registers
+\end_layout
+
+\begin_layout Standard
+Registers are thread-local and are the fastest memory types available.
+ 
+\end_layout
+
+\begin_layout Subsubsection*
+Thread-local memory
+\end_layout
+
+\begin_layout Standard
+Local memory is memory that is local and only visible to one thread.
+ This memory actually resides in the global memory unless placed in registers,
+ and memory accesses are therefore quite slow.
+ 
+\end_layout
+
+\begin_layout Subsubsection*
+Thread-shared memory 
+\end_layout
+
+\begin_layout Standard
+This is fast memory that is local to a specific block of threads.
+ The amount of shared memory is limited to 16 KB per block.
+ 
+\end_layout
+
+\begin_layout Subsubsection*
+Constant Memory 
+\end_layout
+
+\begin_layout Standard
+Fast memory that is local to a grid of threads.
+ The memory includes a cache, but is limited to 64 KB.
+\end_layout
+
+\begin_layout Subsubsection*
+Texture Memory 
+\end_layout
+
+\begin_layout Standard
+Texture memory is a read-only memory that is located in the same location
+ as global memory.
+ Because it is read-only it does not suffer the same performance hits as
+ global memory, but texture memory only supports the data types int, char,
+ and float.
+\end_layout
+
+\begin_layout Subsubsection*
+Global Memory
+\end_layout
+
+\begin_layout Standard
+Global memory is the most abundant memory space on the GPU.
+ All threads can access elements in global memory, but accesses to global
+ memory are very slow.
+ Therefore, when programming a kernel, it is best to try to avoid global
+ memory accesses.
+ 
+\end_layout
+
+\begin_layout Subsection*
+c)
+\end_layout
+
+\begin_layout Standard
+Syncthreads acts as a traditional barrier between all the threads in a block,
+ meaning that when syncthreads is called then none of the threads in the
+ block where it is called will continue until every thread in the block
+ has reached the syncthreads call.
+ Threadfence halts the current thread until all previous writes to shared
+ and global memory are visible to other threads, but it does not affect
+ any other threads than the one calling the function.
+ 
+\end_layout
+
+\begin_layout Section*
+2
+\end_layout
+
+\begin_layout Subsection*
+a)
+\end_layout
+
+\begin_layout Section*
+3
+\end_layout
+
+\begin_layout Subsection*
+a)
+\end_layout
+
+\begin_layout Standard
+A divergent branch, or warp divergence, is when the kernel includes a predicate
+ condition that causes a branch in the program in a warp where not all threads
+ in the warp follow the same path through a branch.
+ Put into simple terms, a warp divergence is when the 32 threads in a warp
+ are not all set to do the same thing.
+ For example, given an array of pixels where every other pixel should be
+ set to blue and every other should be set to green, the following code
+ would cause a divergent branch: 
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+if (threadId % 1 == 0) { 
+\end_layout
+
+\begin_layout Plain Layout
+
+	pixels[threadId] = blue; 
+\end_layout
+
+\begin_layout Plain Layout
+
+} 	
+\end_layout
+
+\begin_layout Plain Layout
+
+else { 
+\end_layout
+
+\begin_layout Plain Layout
+
+	pixels[threadId] = green; 
+\end_layout
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+A way to avoid warp diversion in this example is to rearrange my data so
+ that the pixels that need to be set to blue are aligned, and the pixels
+ that need to be set to green are aligned.
+ That way, one warp would set all of its pixels to green and another would
+ set all of its pixels to blue.
+ 
+\end_layout
+
+\begin_layout Subsection*
+b)
+\end_layout
+
+\begin_layout Subsubsection*
+Sample 1:
+\end_layout
+
+\begin_layout Standard
+This program says that if a thread has an ID greater than 8, than it executes
+ 
+\begin_inset Quotes eld
+\end_inset
+
+my_function1
+\begin_inset Quotes erd
+\end_inset
+
+, otherwise it executes 
+\begin_inset Quotes eld
+\end_inset
+
+my_function2
+\begin_inset Quotes erd
+\end_inset
+
+.
+ This program has warp divergence, because for every block the first 8 threads
+ will execute 
+\begin_inset Quotes eld
+\end_inset
+
+my_function2
+\begin_inset Quotes erd
+\end_inset
+
+, and the rest will execute 
+\begin_inset Quotes eld
+\end_inset
+
+my_fuction1
+\begin_inset Quotes erd
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsubsection*
+Sample 2:
+\end_layout
+
+\begin_layout Standard
+This program says that if a block has an odd block ID, all the threads in
+ that block execute 
+\begin_inset Quotes eld
+\end_inset
+
+my_function1
+\begin_inset Quotes erd
+\end_inset
+
+, otherwise the threads in a block execute 
+\begin_inset Quotes eld
+\end_inset
+
+my_function2
+\begin_inset Quotes erd
+\end_inset
+
+.
+ This program has no problems with warp divergence because all the threads
+ in a block execute the same task, which means all the threads in the same
+ warp execute the same task.
+\end_layout
+
+\begin_layout Subsubsection*
+Sample 3:
+\end_layout
+
+\begin_layout Standard
+This program states that if a thread's thread ID is greater than 64, then
+ it enters the it executes 
+\begin_inset Quotes eld
+\end_inset
+
+my_function1
+\begin_inset Quotes erd
+\end_inset
+
+, otherwise it executes 
+\begin_inset Quotes eld
+\end_inset
+
+my_function2
+\begin_inset Quotes erd
+\end_inset
+
+.
+ This means that threads 0 to 64 will enter the if block, and threads 65
+ to 127 will enter the else block.
+ In other words, the first element of warp number three will enter the if
+ block, and the rest of the elements in the block will enter the else block.
+ This means that the program has warp divergence.
+ 
+\end_layout
+
+\begin_layout Section*
+4
+\end_layout
+
+\begin_layout Subsubsection*
+Sample 1: 
+\end_layout
+
+\begin_layout Standard
+This program states that if a thread's ID is greater than 131, then it executes
+ 
+\begin_inset Quotes eld
+\end_inset
+
+my_function1
+\begin_inset Quotes erd
+\end_inset
+
+, then syncthreads, then 
+\begin_inset Quotes eld
+\end_inset
+
+my_function2
+\begin_inset Quotes erd
+\end_inset
+
+.
+ Otherwise, the thread executes 
+\begin_inset Quotes eld
+\end_inset
+
+my_function2
+\begin_inset Quotes erd
+\end_inset
+
+, then syncthreads, then 
+\begin_inset Quotes eld
+\end_inset
+
+my_function1
+\begin_inset Quotes erd
+\end_inset
+
+.
+ This will cause a deadlock, because some elements in a warp will get through
+ the if statement, while others will not.
+ Note that I'm assuming that the threads need to hit the same syncthreads
+ statement to continue, and that they will deadlock even if they hit different
+ syncthread statements.
+ 
+\end_layout
+
+\begin_layout Subsubsection*
+Sample 2:
+\end_layout
+
+\begin_layout Standard
+In this program, if a thread's block id is greater than 2 then it executes
+ 
+\begin_inset Quotes eld
+\end_inset
+
+my_function1
+\begin_inset Quotes erd
+\end_inset
+
+, then syncthreads, then 
+\begin_inset Quotes eld
+\end_inset
+
+my_function2
+\begin_inset Quotes erd
+\end_inset
+
+.
+ Otherwise, it executes 
+\begin_inset Quotes eld
+\end_inset
+
+my_function2, then syncthreads, then 
+\begin_inset Quotes eld
+\end_inset
+
+my_function1
+\begin_inset Quotes erd
+\end_inset
+
+.
+ This program can not cause a deadlock, because all the threads in a block
+ will either enter the if statement or the else statement.
+ 
+\end_layout
+
+\begin_layout Subsubsection*
+Sample 3:
+\end_layout
+
+\begin_layout Standard
+What happens in this program is that if 
+\begin_inset Quotes eld
+\end_inset
+
+my_function1
+\begin_inset Quotes erd
+\end_inset
+
+ returns true for a given thread, and if that thread's block ID is greater
+ than 2, the thread executes 
+\begin_inset Quotes eld
+\end_inset
+
+my_function2
+\begin_inset Quotes erd
+\end_inset
+
+ and then waits for all the other threads in the block at syncthreads Finally,
+ the thread executes 
+\begin_inset Quotes eld
+\end_inset
+
+my_function3
+\begin_inset Quotes erd
+\end_inset
+
+.
+ If the thread's block ID is not greater than 2, then it executes 
+\begin_inset Quotes eld
+\end_inset
+
+my_function3
+\begin_inset Quotes erd
+\end_inset
+
+ directly after entering the while loop.
+ This program can potentially deadlock because if some threads in the block
+ don't get through the clause after the while statement, and some do, then
+ the threads who entered the while loop will wait for the threads who didn't
+ ininitely at the call to syncthreads.
+ In other words: the program deadlocks if the function 
+\begin_inset Quotes eld
+\end_inset
+
+my_function1
+\begin_inset Quotes erd
+\end_inset
+
+ can return different values for threads in the same block.
+ 
+\end_layout
+
+\begin_layout Section*
+5
+\end_layout
+
+\begin_layout Standard
+Shared memory can be used to speed-up our program to blur an image because
+ each block can store their part of the image in shared memory with a halo.
+ This will speed up the time it takes to read the different pixels.
+ Because this program only runs with one iteration, there is no need for
+ a border exchange.
+ 
+\end_layout
+
+\begin_layout Part*
+Part 2, Code
+\end_layout
+
+\begin_layout Section*
+1
+\end_layout
+
+\begin_layout Standard
+See blur_cuda.cu.
+ 
+\end_layout
+
+\begin_layout Section*
+2
+\end_layout
+
+\begin_layout Standard
+See kmeans_cuda.cu.
+ 
+\end_layout
+
+\begin_layout Subsection*
+Description of implementation
+\end_layout
+
+\begin_layout Standard
+Implementing a parallelized version of the k-means clustering alorithm has
+ two steps: 
+\end_layout
+
+\begin_layout Enumerate
+Paralellizing the step where centroids for the clusters are calculated.
+ 
+\end_layout
+
+\begin_layout Enumerate
+Paralellizing the step where points are set to a cluster.
+ 
+\end_layout
+
+\begin_layout Standard
+I chose to perform the calculation of new centroid values by assigning each
+ cluster a thread.
+ This implementation requires a large amount of clusters compared to points
+ to become efficient.
+ The kernel function that performs this calulcation in my program is called
+ new_centroids().
+ The first step of the function (line 153) is checking that the thread ID
+ doesn't exceed the number of clusters.
+ This line, in addition to the addition of 1 on line 243 when the grid size
+ is set, is intended to make my program more robust to different kinds of
+ input values.
+ 
+\end_layout
+
+\begin_layout Standard
+Each thread iterates through all the points and checks if it belongs to
+ the current cluster.
+ If it does then it's values are added, and at the end of the function the
+ values for the x and y for the current cluster are divided by the number
+ of points in the cluster.
+ A central assumption when choosing this implementation is the assumption
+ I made that the process of checking if a point belongs to a cluster is
+ very fast compared to the process of adding the coordinates of a point
+ to a cluster.
+ 
+\end_layout
+
+\begin_layout Standard
+The step where points are set to a cluster was implementing by assigning
+ one thread to each point.
+ Then, quite similarily to the naive version, the distances to each cluster
+ is compared for each point.
+\end_layout
+
+\end_body
+\end_document

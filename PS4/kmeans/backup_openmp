@@ -1,0 +1,45 @@
+        /* 
+        
+        Parallel computation of new centroid positions. Unfortunately I could not get this to work properly, so it is commented out, 
+        and centroid positions are currently updated serially. 
+
+        I attempted to calculate new centroid positions in parallel by calculating the local centroids for each thread locally first
+        and then taking the mean of each local centroid for each thread to get the global centroid value. 
+
+        */
+
+        //#pragma omp parallel num_threads(nThreads)
+        //nThreads threads are spawned
+        {   
+            //Array to hold local centroid values is initialized
+            Centroid local_centroids[nClusters];
+            //Iterate over each point in the local problem space and calculate the local centroids
+           // #pragma omp for 
+            for(int i = 0; i < nPoints; i++){
+                int c = points[i].cluster;
+                local_centroids[c].x += points[i].x;
+                local_centroids[c].y += points[i].y;
+                local_centroids[c].nPoints++;
+            }
+            for(int i = 0; i < nClusters; i++){
+                if (local_centroids[i].nPoints != 0) local_centroids[i].x /= local_centroids[i].nPoints;
+                if (local_centroids[i].nPoints != 0) local_centroids[i].y /= local_centroids[i].nPoints;
+                //#pragma omp critical 
+                {
+                   centroids[i].x += local_centroids[i].x;
+                   centroids[i].y += local_centroids[i].y;
+                   centroids[i].nPoints += local_centroids[i].nPoints;
+                   has_elements_from[i]++;
+                }
+            }
+        }
+
+        for (int i = 0; i < nClusters; i++) {
+            if (centroids[i].nPoints == 0) {
+                centroids[i] = create_random_centroid();
+            }
+            else {
+                centroids[i].x /= has_elements_from[i];
+                centroids[i].y /= has_elements_from[i]; 
+            }
+        }
