@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "global.h"
+#include <omp.h>
 
 // Indexing macro for local pres arrays
 #define LP(row,col) ((row)+border)*(local_width + 2*border) + ((col) + border)
@@ -119,7 +120,9 @@ void jacobi_iteration(){
 // Solve linear system with jacobi method
 void jacobi (int iter) {
 	//Each rank initialize their own local_pres and local_pres0 arrays for each CFD iteration. 
+	 #pragma omp parallel for 
 	 for (int i=-1; i<local_height+1; i++) {
+	 	if (rank == 0) printf("num threads: %i\n", omp_get_num_threads());
 	 	for (int j=-1; j<local_width+1; j++) {
 	 		local_pres0[LP(i,j)] = 0;
 	 		local_pres[LP(i,j)] = 0;
